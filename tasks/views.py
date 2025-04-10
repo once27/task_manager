@@ -14,6 +14,7 @@ from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
 from .serializers import UserSerializer,TaskSerializer
 from .models import Task
+from rest_framework.generics import ListAPIView
 
 # Create your views here.
 
@@ -104,3 +105,18 @@ class TaskCreateView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class TaskListView(ListAPIView):
+    serializer_class = TaskSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # Admins and managers can see all tasks
+        if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']):
+            return Task.objects.all()
+        
+        # Team members see only their assigned tasks
+        return Task.objects.filter(assignee=user)
