@@ -12,7 +12,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
-from .serializers import UserSerializer
+from .serializers import UserSerializer,TaskSerializer
+from .models import Task
 
 # Create your views here.
 
@@ -86,3 +87,20 @@ class UserListView(APIView):
 #         users = User.objects.all()
 #         serializer = UserSerializer(users, many=True)
 #         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class TaskCreateView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        # Only admin and manager allowed to create tasks
+        if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager'])):
+            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = TaskSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
