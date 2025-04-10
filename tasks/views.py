@@ -9,6 +9,11 @@ from .serializers import RegisterSerializer
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.views import APIView
+from django.contrib.auth.models import User
+from rest_framework.decorators import authentication_classes, permission_classes
+from .serializers import UserSerializer
+
 # Create your views here.
 
 class RegisterAPIView(generics.CreateAPIView):
@@ -56,3 +61,28 @@ class LogoutAPIView(generics.GenericAPIView):
 #         request.user.auth_token.delete()
 #         logout(request)
 #         return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
+
+class UserListView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        role = request.query_params.get('role', None)
+
+        if role:
+            users = User.objects.filter(userprofile__role=role)
+        else:
+            users = User.objects.all()
+
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+# only for admin access 
+# class UserListView(APIView):
+#     authentication_classes = [TokenAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         users = User.objects.all()
+#         serializer = UserSerializer(users, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
