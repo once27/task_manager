@@ -107,6 +107,7 @@ class TaskCreateView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+# currently not working
 class TaskListView(ListAPIView):
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication]
@@ -149,17 +150,29 @@ class TaskUpdateView(APIView):
             serializer = TaskSerializer(task, data=update_data, partial=True)
 
         if serializer.is_valid():
-            serializer.save()
+            old_values = {field: getattr(task, field) for field in update_data.keys()}#Save old values BEFORE saving
 
-            # ✅ Log activity here
-            TaskActivity.objects.create(
+            serializer.save()             # 2. Save new updated values
+            task.refresh_from_db()
+
+            changed_fields = [] 
+            for field in update_data.keys():
+                old = old_values.get(field)
+                new = getattr(task, field)
+                if str(old) != str(new):
+                    changed_fields.append(f"{field} changed from '{old}' to '{new}'") #Compare and generate message to display
+
+            message = "; ".join(changed_fields) if changed_fields else ''
+ 
+            TaskActivity.objects.create( #Log activity
                 task=task,
                 user=user,
                 action='status_change' if 'status' in update_data else 'updated',
-                message=update_data.get('status_note', '')
+                message=message
             )
 
             return Response(serializer.data)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     
