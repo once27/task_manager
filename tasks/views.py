@@ -12,8 +12,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
-from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer
-from .models import Task,TaskActivity,TaskActivity
+from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer
+from .models import Task,TaskActivity,TaskActivity,TaskComment
 from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
 
@@ -175,9 +175,6 @@ class TaskUpdateView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    
-    
-    
 class TaskActivityListView(ListAPIView):
     serializer_class = TaskActivitySerializer
     authentication_classes = [TokenAuthentication]
@@ -186,3 +183,20 @@ class TaskActivityListView(ListAPIView):
     def get_queryset(self):
         task_id = self.kwargs['task_id']
         return TaskActivity.objects.filter(task__id=task_id).order_by('-timestamp')
+    
+class TaskCommentListCreateView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, task_id):
+        comments = TaskComment.objects.filter(task__id=task_id).order_by('created_at')
+        serializer = TaskCommentSerializer(comments, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, task_id):
+        task = get_object_or_404(Task, pk=task_id)
+        serializer = TaskCommentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(task=task, user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
