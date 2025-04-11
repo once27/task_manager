@@ -39,3 +39,21 @@ class Task(models.Model):
     def __str__(self):
         return f"{self.title} -> {self.assignee.username}"
 
+class TaskActivity(models.Model):
+    ACTION_CHOICES = [
+        ('created', 'Created'),
+        ('updated', 'Updated'),
+        ('status_change', 'Status Change'),
+        ('comment', 'Comment'),
+    ]
+
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='activities')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    action = models.CharField(max_length=50, choices=ACTION_CHOICES)
+    message = models.TextField(blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} {self.action} on '{self.task.title}' at {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+    
+
