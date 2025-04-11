@@ -15,6 +15,7 @@ from rest_framework.decorators import authentication_classes, permission_classes
 from .serializers import UserSerializer,TaskSerializer
 from .models import Task
 from rest_framework.generics import ListAPIView
+from django.shortcuts import get_object_or_404
 
 # Create your views here.
 
@@ -120,3 +121,37 @@ class TaskListView(ListAPIView):
         
         # Team members see only their assigned tasks
         return Task.objects.filter(assignee=user)
+    
+class TaskUpdateView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        user = request.user
+        task = get_object_or_404(Task, pk=pk)
+
+        # Admin/manager can update any task
+        if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']):
+            serializer = TaskSerializer(task, data=request.data, partial=True)
+        else:
+        # Team members: only update their own tasks and only status + note
+            if task.assignee != user:
+                return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+    
+        allowed_fields = {'status', 'status_note'}
+        data = {k: v for k, v in request.data.items() if k in allowed_fields}
+
+        # Check: if status is being changed, status_note must be provided
+        if 'status' in data and 'status_note' not in data:
+            return Response(
+                {"detail": "Please provide a status note when updating task status."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = TaskSerializer(task, data=data, partial=True)
+
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
