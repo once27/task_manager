@@ -125,7 +125,29 @@ class TaskListView(ListAPIView):
             return queryset
 
         return queryset.filter(assignee=user)
+    
+class MyTasksView(ListAPIView):
+    serializer_class = TaskSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Task.objects.filter(assignee=user)
+
+        status_filter = self.request.query_params.get('status')# Filter by status
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        priority_filter = self.request.query_params.get('priority')# Filter by priority
+        if priority_filter:
+            queryset = queryset.filter(priority=priority_filter)
+
+        ordering = self.request.query_params.get('order_by')
+        if ordering in ['deadline', 'priority', '-deadline', '-priority']:
+            queryset = queryset.order_by(ordering)
+
+        return queryset
 
     
 class TaskUpdateView(APIView):
