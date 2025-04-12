@@ -60,11 +60,6 @@ class LogoutAPIView(generics.GenericAPIView):
         logout(request)
         return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
 
-# class LogoutAPIView(generics.GenericAPIView):
-#     def post(self, request, *args, **kwargs):
-#         request.user.auth_token.delete()
-#         logout(request)
-#         return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
 
 class UserListView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -81,15 +76,6 @@ class UserListView(APIView):
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
-# only for admin access 
-# class UserListView(APIView):
-#     authentication_classes = [TokenAuthentication]
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         users = User.objects.all()
-#         serializer = UserSerializer(users, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class TaskCreateView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -98,17 +84,16 @@ class TaskCreateView(APIView):
     def post(self, request):
         user = request.user
 
-        # Only admin and manager allowed to create tasks
         if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager'])):
             return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = TaskSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save()  # it now accepts project and assignee IDs directly
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-# currently not working
+
+
 class TaskListView(ListAPIView):
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication]
@@ -116,13 +101,19 @@ class TaskListView(ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        project_id = self.request.query_params.get('project')
 
-        # Admins and managers can see all tasks
+        queryset = Task.objects.all()
+
+        if project_id:
+            queryset = queryset.filter(project__id=project_id)
+
         if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']):
-            return Task.objects.all()
+            return queryset
         
-        # Team members see only their assigned tasks
-        return Task.objects.filter(assignee=user)
+        return queryset.filter(assignee=user)
+
+
     
 class TaskUpdateView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -212,3 +203,4 @@ class ProjectListCreateView(ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(manager=self.request.user)
+

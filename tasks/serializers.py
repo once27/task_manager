@@ -39,9 +39,15 @@ class UserSerializer(serializers.ModelSerializer):
 #         fields = ['id', 'username', 'email']
 
 class TaskSerializer(serializers.ModelSerializer):
+    assignee = serializers.PrimaryKeyRelatedField(
+    queryset=User.objects.all(), required=True
+)
+    project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all(), required=False)
+
     class Meta:
         model = Task
-        fields = '__all__'
+        fields = ['id', 'title', 'description', 'status', 'priority', 'deadline', 'created_at', 'assignee', 'status_note', 'project']
+
 
 class TaskActivitySerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
@@ -63,3 +69,5 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'title', 'description', 'manager', 'start_date', 'deadline']
+
+
