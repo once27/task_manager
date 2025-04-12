@@ -17,6 +17,7 @@ from .models import Task,TaskActivity,TaskActivity,TaskComment,Project
 from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListCreateAPIView
+from django.utils.dateparse import parse_date
 
 # Create your views here.
 
@@ -101,16 +102,28 @@ class TaskListView(ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        project_id = self.request.query_params.get('project')
-
         queryset = Task.objects.all()
 
+        project_id = self.request.query_params.get('project')# Filter by project ID
         if project_id:
             queryset = queryset.filter(project__id=project_id)
+ 
+        status_filter = self.request.query_params.get('status')# Filter by task status
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
 
-        if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']):
+        deadline_before = self.request.query_params.get('deadline_before')# Filter by deadline before or after
+        deadline_after = self.request.query_params.get('deadline_after')
+
+        if deadline_before:
+            queryset = queryset.filter(deadline__lte=parse_date(deadline_before))
+
+        if deadline_after:
+            queryset = queryset.filter(deadline__gte=parse_date(deadline_after))
+
+        if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']):# Role-based visibility
             return queryset
-        
+
         return queryset.filter(assignee=user)
 
 
