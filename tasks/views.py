@@ -158,7 +158,26 @@ class TaskUpdateView(APIView):
         user = request.user
         task = get_object_or_404(Task, pk=pk)
 
-        if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']):
+        valid_transitions = {# Status transition control
+            'todo': ['in_progress'],
+            'in_progress': ['done', 'todo'],
+            'done': [],
+        }
+
+        new_status = request.data.get('status')
+        if new_status:
+            current_status = task.status
+
+            if new_status != current_status:
+                allowed = valid_transitions.get(current_status, [])
+                if new_status not in allowed:
+                    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager'])):# admin/manager can break the flow
+                        return Response(
+                            {"detail": f"Invalid status transition from '{current_status}' to '{new_status}'"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+        if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']):# Role-based logic
             serializer = TaskSerializer(task, data=request.data, partial=True)
             update_data = request.data
         else:
@@ -177,21 +196,21 @@ class TaskUpdateView(APIView):
             serializer = TaskSerializer(task, data=update_data, partial=True)
 
         if serializer.is_valid():
-            old_values = {field: getattr(task, field) for field in update_data.keys()}#Save old values BEFORE saving
+            old_values = {field: getattr(task, field) for field in update_data.keys()}  # Save old values
 
-            serializer.save()             # 2. Save new updated values
+            serializer.save()  # Save new updated values
             task.refresh_from_db()
 
-            changed_fields = [] 
+            changed_fields = []
             for field in update_data.keys():
                 old = old_values.get(field)
                 new = getattr(task, field)
                 if str(old) != str(new):
-                    changed_fields.append(f"{field} changed from '{old}' to '{new}'") #Compare and generate message to display
+                    changed_fields.append(f"{field} changed from '{old}' to '{new}'")
 
             message = "; ".join(changed_fields) if changed_fields else ''
- 
-            TaskActivity.objects.create( #Log activity
+
+            TaskActivity.objects.create(
                 task=task,
                 user=user,
                 action='status_change' if 'status' in update_data else 'updated',
@@ -201,6 +220,7 @@ class TaskUpdateView(APIView):
             return Response(serializer.data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class TaskActivityListView(ListAPIView):
     serializer_class = TaskActivitySerializer
