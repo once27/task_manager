@@ -12,10 +12,11 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
-from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer
-from .models import Task,TaskActivity,TaskActivity,TaskComment
+from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer
+from .models import Task,TaskActivity,TaskActivity,TaskComment,Project
 from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
+from rest_framework.generics import ListCreateAPIView
 
 # Create your views here.
 
@@ -200,3 +201,14 @@ class TaskCommentListCreateView(APIView):
             serializer.save(task=task, user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ProjectListCreateView(ListCreateAPIView):
+    serializer_class = ProjectSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Project.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(manager=self.request.user)

@@ -14,6 +14,16 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username} ({self.role})"
 
+class Project(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='managed_projects')
+    start_date = models.DateField()
+    deadline = models.DateField()
+
+    def __str__(self):
+        return self.title
+
 class Task(models.Model):
     STATUS_CHOICES = [
         ('todo', 'To Do'),
@@ -26,8 +36,8 @@ class Task(models.Model):
         ('medium', 'Medium'),
         ('high', 'High'),
     ]
-
     title = models.CharField(max_length=255)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
     description = models.TextField()
     assignee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_tasks')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='todo')

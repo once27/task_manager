@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import UserProfile,Task,TaskActivity,TaskComment
+from .models import UserProfile,Task,TaskActivity,TaskComment,Project
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -56,3 +56,10 @@ class TaskCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskComment
         fields = ['id', 'user', 'message', 'created_at']
+
+class ProjectSerializer(serializers.ModelSerializer):
+    manager = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = Project
+        fields = ['id', 'title', 'description', 'manager', 'start_date', 'deadline']
