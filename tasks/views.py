@@ -12,7 +12,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
-from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer
+from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer,TaskDetailSerializer
 from .models import Task,TaskActivity,TaskActivity,TaskComment,Project
 from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
@@ -259,3 +259,17 @@ class ProjectListCreateView(ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(manager=self.request.user)
 
+class TaskDetailView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        task = get_object_or_404(Task, pk=pk)
+
+        # Optionally restrict to self-assigned tasks for members
+        if not (request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role in ['admin', 'manager'])):
+            if task.assignee != request.user:
+                return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = TaskDetailSerializer(task)
+        return Response(serializer.data)

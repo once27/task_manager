@@ -70,4 +70,36 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = ['id', 'title', 'description', 'manager', 'start_date', 'deadline']
 
+from .models import Task, TaskComment, TaskActivity, Project
+
+class TaskCommentMiniSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+
+    class Meta:
+        model = TaskComment
+        fields = ['user', 'message', 'created_at']
+
+
+class TaskActivityMiniSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+
+    class Meta:
+        model = TaskActivity
+        fields = ['user', 'action', 'message', 'timestamp']
+
+
+class TaskDetailSerializer(serializers.ModelSerializer):
+    assignee = serializers.StringRelatedField()
+    project = serializers.StringRelatedField()
+    comments = TaskCommentMiniSerializer(many=True, read_only=True)
+    activity_log = TaskActivityMiniSerializer(source='activities', many=True, read_only=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            'id', 'title', 'description', 'status', 'priority', 'deadline',
+            'created_at', 'assignee', 'project',
+            'comments', 'activity_log'
+        ]
+
 
