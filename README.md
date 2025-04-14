@@ -81,6 +81,28 @@ A JIRA-inspired app for managing tasks and projects.
 
 **Note**: All authenticated routes require passing a valid token via `Authorization: Token <your_token>`
 
+---
+
+## ✨ Future Plans
+
+- Add unit tests and coverage
+- Setup CI/CD pipelines with GitHub Actions
+- Implement notifications via WebSockets or polling
+- Add a rich frontend using Django templates + JavaScript *(or React in future)*
+- Deploy on cloud *(Render, Railway, or AWS)*
+
+---
+
+## 🧠 Learning Goals
+
+This project is part of my learning journey to:
+
+- Master Django REST Framework and backend API development
+- Practice clean code and software architecture
+- Learn containerization and DevOps using Docker
+- Get hands-on with CI/CD pipelines and production-ready workflows
+
+--- 
 
 ## 🐳 Getting Started (With Docker)
 
@@ -108,28 +130,4 @@ python manage.py migrate
 python manage.py runserver
 
 
-✨ Future Plans
-
-Add unit tests and coverage
-
-Setup CI/CD pipelines with GitHub Actions
-
-Implement notifications via WebSockets or polling
-
-Add a rich frontend using Django templates + JavaScript (or React in future)
-
-Deploy on cloud (Render, Railway, or AWS)
-
-
-🧠 Learning Goals
-
-This project is part of my learning journey to:
-
-Master Django REST Framework and backend API development
-
-Practice clean code and software architecture
-
-Learn containerization and DevOps using Docker
-
-Get hands-on with CI/CD pipelines and production-ready workflows
 
