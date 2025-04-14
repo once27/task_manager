@@ -12,8 +12,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
-from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer,TaskDetailSerializer,ProjectDetailSerializer
-from .models import Task,TaskActivity,TaskActivity,TaskComment,Project
+from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer,TaskDetailSerializer,ProjectDetailSerializer,NotificationSerializer
+from .models import Task,TaskActivity,TaskActivity,TaskComment,Project,Notification
 from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListCreateAPIView
@@ -90,9 +90,19 @@ class TaskCreateView(APIView):
 
         serializer = TaskSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()  # it now accepts project and assignee IDs directly
+            task = serializer.save()
+
+            Notification.objects.create(# Send notification to assignee
+                recipient=task.assignee,
+                message=f"You've been assigned a new task: {task.title}",
+                task=task,
+                project=task.project
+            )
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class TaskListView(ListAPIView):
@@ -216,6 +226,14 @@ class TaskUpdateView(APIView):
                 action='status_change' if 'status' in update_data else 'updated',
                 message=message
             )
+            
+            if 'status' in update_data:# Send status update notification to assignee
+                Notification.objects.create(
+                recipient=task.assignee,
+                message=f"Status of task '{task.title}' changed to '{task.status}'",
+                task=task,
+                project=task.project
+            )
 
             return Response(serializer.data)
 
@@ -244,9 +262,19 @@ class TaskCommentListCreateView(APIView):
         task = get_object_or_404(Task, pk=task_id)
         serializer = TaskCommentSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(task=task, user=request.user)
+            comment = serializer.save(task=task, user=request.user)
+
+            if task.assignee != request.user: # Notify assignee 
+                Notification.objects.create(
+                    recipient=task.assignee,
+                    message=f"{request.user.username} commented on task: {task.title}",
+                    task=task,
+                    project=task.project
+                )
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ProjectListCreateView(ListCreateAPIView):
     serializer_class = ProjectSerializer
@@ -288,3 +316,11 @@ class ProjectDetailView(APIView):
 
         serializer = ProjectDetailSerializer(project)
         return Response(serializer.data)
+
+class NotificationListView(ListAPIView):
+    serializer_class = NotificationSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')

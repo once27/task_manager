@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import UserProfile,Task,TaskActivity,TaskComment,Project
+from .models import UserProfile,Task,TaskActivity,TaskComment,Project,Notification
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -122,3 +122,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             'start_date', 'deadline', 'tasks'
         ]
 
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'is_read', 'created_at', 'task', 'project']
