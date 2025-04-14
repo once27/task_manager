@@ -103,3 +103,22 @@ class TaskDetailSerializer(serializers.ModelSerializer):
         ]
 
 
+class ProjectTaskMiniSerializer(serializers.ModelSerializer):
+    assignee = serializers.StringRelatedField()
+
+    class Meta:
+        model = Task
+        fields = ['id', 'title', 'status', 'assignee', 'deadline']
+
+
+class ProjectDetailSerializer(serializers.ModelSerializer):
+    manager = serializers.StringRelatedField()
+    tasks = ProjectTaskMiniSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Project
+        fields = [
+            'id', 'title', 'description', 'manager',
+            'start_date', 'deadline', 'tasks'
+        ]
+

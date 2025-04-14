@@ -12,7 +12,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
-from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer,TaskDetailSerializer
+from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer,TaskDetailSerializer,ProjectDetailSerializer
 from .models import Task,TaskActivity,TaskActivity,TaskComment,Project
 from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
@@ -272,4 +272,19 @@ class TaskDetailView(APIView):
                 return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = TaskDetailSerializer(task)
+        return Response(serializer.data)
+
+class ProjectDetailView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+
+        # Optional: Only manager/admin sees all, others need to be involved
+        if not (request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role in ['admin', 'manager'])):
+            if not project.tasks.filter(assignee=request.user).exists():
+                return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ProjectDetailSerializer(project)
         return Response(serializer.data)
