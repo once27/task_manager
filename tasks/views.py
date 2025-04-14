@@ -342,3 +342,11 @@ class NotificationMarkAllAsReadView(APIView):
     def post(self, request):
         Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
         return Response({"detail": "All notifications marked as read"})
+
+class UnreadNotificationCountView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+        return Response({"unread_count": count})
