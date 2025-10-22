@@ -70,7 +70,12 @@ class TaskSerializer(serializers.ModelSerializer):
                 data['project'] = project
             except Project.DoesNotExist:
                 raise serializers.ValidationError({'project': f"Project '{project_name}' does not exist."})
-            return data
+            
+            if assignee_user not in project.members.all() and assignee_user != project.manager:
+                raise serializers.ValidationError(
+                    {'assignee': f"User '{assignee_name}' is not a member or manager of the project '{project_name}'."}
+                )
+            #return data
         else:
             if 'assignee' in data:
                 assignee_name = data.pop('assignee')    
@@ -79,8 +84,8 @@ class TaskSerializer(serializers.ModelSerializer):
                     data['assignee'] = assignee_user
                 except User.DoesNotExist:
                     raise serializers.ValidationError({'assignee': f"User '{assignee_name}' does not exist."})
-            return data
-
+            #return data
+        return data
     validators = [UniqueTogetherValidator(queryset = Task.objects.all(),fields=['title','assignee'])]
 
 
@@ -172,3 +177,8 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['id', 'message', 'is_read', 'created_at', 'task_title', 'task_description' , 'project_name']
+
+class ProjectMemberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id','username']

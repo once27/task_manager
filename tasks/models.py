@@ -21,11 +21,15 @@ class Project(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='managed_projects')
+    members = models.ManyToManyField(User, related_name='projects', blank=True)
     start_date = models.DateField(default=date.today)
     deadline = models.DateField()
 
     def __str__(self):
         return self.title
+    
+    class Meta:
+        unique_together = [['title', 'description', 'manager']]
 
 class Task(models.Model):
     STATUS_CHOICES = [

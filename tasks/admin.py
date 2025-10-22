@@ -5,12 +5,14 @@ from .models import UserProfile,Task,TaskActivity,TaskComment,Project
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'role')
+    
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'assignee', 'status', 'priority', 'deadline', 'created_at')
     list_filter = ('status', 'priority', 'deadline')
     search_fields = ('title', 'description', 'assignee__username')
     ordering = ('-created_at',)
+
 @admin.register(TaskActivity)
 class TaskActivityAdmin(admin.ModelAdmin):
     list_display = ('task', 'user', 'action', 'message', 'timestamp')
@@ -28,4 +30,4 @@ class TaskCommentAdmin(admin.ModelAdmin):
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('title', 'manager', 'start_date', 'deadline')
     search_fields = ('title', 'description')
-    list_filter = ('start_date', 'deadline')
+    list_filter = ('start_date', 'deadline')    

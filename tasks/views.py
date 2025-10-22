@@ -12,8 +12,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
-from .permissions import IsAdminOrManager,IsAdminOrManagerOrAssignee
-from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer,TaskDetailSerializer,ProjectDetailSerializer,NotificationSerializer
+from .permissions import IsAdminOrManager,IsAdminOrManagerOrAssignee,IsProjectMemberOrAdmin
+from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer,TaskDetailSerializer,ProjectDetailSerializer,NotificationSerializer,ProjectMemberSerializer
 from .models import Task,TaskActivity,TaskActivity,TaskComment,Project,Notification
 from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
@@ -249,7 +249,7 @@ class TaskActivityListView(ListAPIView):
     
 class TaskCommentListCreateView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsProjectMemberOrAdmin]
 
     def get(self, request, task_id):
         comments = TaskComment.objects.filter(task__id=task_id).order_by('created_at')
@@ -258,6 +258,7 @@ class TaskCommentListCreateView(APIView):
 
     def post(self, request, task_id):
         task = get_object_or_404(Task, pk=task_id)
+        self.check_object_permissions(request, task)    
         serializer = TaskCommentSerializer(data=request.data)
         if serializer.is_valid():
             comment = serializer.save(task=task, user=request.user)
@@ -327,3 +328,65 @@ class NotificationListView(ListAPIView):
         queryset.update(is_read=True)
         
         return Response(serializer.data)
+    
+class ProjectMemberView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated,IsAdminOrManager]
+
+    def post(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        self.check_object_permissions(request, project) # Run permission check
+        
+        usernames = request.data.get('usernames', []) # Get usernames as a list
+        if not usernames:
+            return Response({"error": "List of usernames is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        added_users = []
+        not_found_users = []
+        for username in usernames:
+            try:
+                user_to_add = User.objects.get(username=username)
+                project.members.add(user_to_add)
+                added_users.append(username)
+            except User.DoesNotExist:
+                not_found_users.append(username)
+
+        response_data = {}
+        if added_users:
+            response_data["added"] = f"Users '{', '.join(added_users)}' added to project '{project.title}'"
+        if not_found_users:
+            response_data["not_found"] = f"Users '{', '.join(not_found_users)}' not found"
+
+        return Response(response_data)
+    
+    def get(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        members = project.members.all()
+        serializer = ProjectMemberSerializer(members, many=True)
+        return Response(serializer.data)
+    
+    def delete(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        self.check_object_permissions(request, project) # Run permission check
+
+        usernames = request.data.get('usernames', [])
+        if not usernames:
+            return Response({"error": "List of usernames is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        removed_users = []
+        not_found_users = []
+        for username in usernames:
+            try:
+                user_to_remove = User.objects.get(username=username)
+                project.members.remove(user_to_remove)
+                removed_users.append(username)
+            except User.DoesNotExist:
+                not_found_users.append(username)
+
+        response_data = {}
+        if removed_users:
+            response_data["removed"] = f"Users '{', '.join(removed_users)}' removed from project '{project.title}'"
+        if not_found_users:
+            response_data["not_found"] = f"Users '{', '.join(not_found_users)}' not found"
+
+        return Response(response_data)

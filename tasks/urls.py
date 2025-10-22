@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterAPIView, LoginAPIView,LogoutAPIView,UserListView,TaskCreateView,TaskListView,TaskUpdateView,TaskActivityListView,TaskCommentListCreateView,ProjectListCreateView,MyTasksView,TaskDetailView,ProjectDetailView,NotificationListView,dashboard_view #NotificationMarkAsReadView,NotificationMarkAllAsReadView,UnreadNotificationCountView
+from .views import RegisterAPIView, LoginAPIView,LogoutAPIView,UserListView,TaskCreateView,TaskListView,TaskUpdateView,TaskActivityListView,TaskCommentListCreateView,ProjectListCreateView,MyTasksView,TaskDetailView,ProjectDetailView,NotificationListView,ProjectMemberView,dashboard_view #NotificationMarkAsReadView,NotificationMarkAllAsReadView,UnreadNotificationCountView
 
 
 urlpatterns = [
@@ -20,5 +20,6 @@ urlpatterns = [
     # path('notifications/<int:pk>/read/', NotificationMarkAsReadView.as_view(), name='mark-notification-read'),
     # path('notifications/read-all/', NotificationMarkAllAsReadView.as_view(), name='mark-all-read'),
     # path('notifications/unread-count/', UnreadNotificationCountView.as_view(), name='unread-count'),
+    path('projects/<int:pk>/members/', ProjectMemberView.as_view(), name='project-members'),
     path('dashboard/', dashboard_view, name='dashboard'),
 ]
