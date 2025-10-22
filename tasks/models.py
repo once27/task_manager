@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
+from datetime import date
 # Create your models here.
+
+
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('admin', 'Admin'),
@@ -18,7 +21,7 @@ class Project(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='managed_projects')
-    start_date = models.DateField()
+    start_date = models.DateField(default=date.today)
     deadline = models.DateField()
 
     def __str__(self):
@@ -38,7 +41,7 @@ class Task(models.Model):
     ]
     title = models.CharField(max_length=255)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
-    description = models.TextField()
+    description = models.TextField(default='')
     assignee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_tasks')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='todo')
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')

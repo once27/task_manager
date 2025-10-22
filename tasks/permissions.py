@@ -1,15 +1,17 @@
-
-# currently not using as it is causing issues in testing
 from rest_framework.permissions import BasePermission
 
-class IsAdminUserRole(BasePermission):
-    """
-    Allows access only to users with role 'admin'.
-    """
-
+class IsAdminOrManager(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated and
             hasattr(request.user, 'profile') and
-            request.user.profile.role == 'admin'
+            request.user.profile.role in ['admin', 'manager']
         )
+    
+class IsAdminOrManagerOrAssignee(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if (hasattr(request.user, 'profile') and
+                request.user.profile.role in ['admin', 'manager']):
+            return True
+        
+        return obj.assignee == request.user

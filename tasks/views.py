@@ -12,15 +12,19 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.decorators import authentication_classes, permission_classes
+from .permissions import IsAdminOrManager,IsAdminOrManagerOrAssignee
 from .serializers import UserSerializer,TaskSerializer,TaskActivitySerializer,TaskCommentSerializer,ProjectSerializer,TaskDetailSerializer,ProjectDetailSerializer,NotificationSerializer
 from .models import Task,TaskActivity,TaskActivity,TaskComment,Project,Notification
 from rest_framework.generics import ListAPIView
 from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListCreateAPIView
 from django.utils.dateparse import parse_date
+from rest_framework.response import Response
 
 # Create your views here.
 
+def dashboard_view(request):
+    return render(request, 'dashboard.html')
 class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -80,14 +84,9 @@ class UserListView(APIView):
 
 class TaskCreateView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsAdminOrManager]
 
     def post(self, request):
-        user = request.user
-
-        if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager'])):
-            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
-
         serializer = TaskSerializer(data=request.data)
         if serializer.is_valid():
             task = serializer.save()
@@ -162,11 +161,13 @@ class MyTasksView(ListAPIView):
     
 class TaskUpdateView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsAdminOrManagerOrAssignee]
 
     def patch(self, request, pk):
         user = request.user
         task = get_object_or_404(Task, pk=pk)
+
+        self.check_object_permissions(request, task)
 
         valid_transitions = {# Status transition control
             'todo': ['in_progress'],
@@ -187,13 +188,10 @@ class TaskUpdateView(APIView):
                             status=status.HTTP_400_BAD_REQUEST
                         )
 
-        if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']):# Role-based logic
+        if hasattr(user, 'profile') and user.profile.role in ['admin', 'manager']:
             serializer = TaskSerializer(task, data=request.data, partial=True)
             update_data = request.data
         else:
-            if task.assignee != user:
-                return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
-
             allowed_fields = {'status', 'status_note'}
             update_data = {k: v for k, v in request.data.items() if k in allowed_fields}
 
@@ -279,7 +277,7 @@ class TaskCommentListCreateView(APIView):
 class ProjectListCreateView(ListCreateAPIView):
     serializer_class = ProjectSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsAdminOrManager]
 
     def get_queryset(self):
         return Project.objects.all()
@@ -289,16 +287,12 @@ class ProjectListCreateView(ListCreateAPIView):
 
 class TaskDetailView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsAdminOrManagerOrAssignee]
 
     def get(self, request, pk):
         task = get_object_or_404(Task, pk=pk)
-
-        # Optionally restrict to self-assigned tasks for members
-        if not (request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role in ['admin', 'manager'])):
-            if task.assignee != request.user:
-                return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
-
+        self.check_object_permissions(request, task)
+       
         serializer = TaskDetailSerializer(task)
         return Response(serializer.data)
 
@@ -325,28 +319,11 @@ class NotificationListView(ListAPIView):
     def get_queryset(self):
         return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
 
-class NotificationMarkAsReadView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request, pk):
-        notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
-        notification.is_read = True
-        notification.save()
-        return Response({"detail": "Marked as read"}, status=status.HTTP_200_OK)
-
-class NotificationMarkAllAsReadView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
-        return Response({"detail": "All notifications marked as read"})
-
-class UnreadNotificationCountView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        count = Notification.objects.filter(recipient=request.user, is_read=False).count()
-        return Response({"unread_count": count})
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        serializer = self.get_serializer(queryset, many=True)
+    
+        queryset.update(is_read=True)
+        
+        return Response(serializer.data)
